@@ -1,0 +1,7 @@
+Expected Features of ValiantLib:
+
+
+Command Module:
+[+] Support for alot more Boxed Classes
+[+] Support for persistant objects between command runs. Services Possibily?
+
