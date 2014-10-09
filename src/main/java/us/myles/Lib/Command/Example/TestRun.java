@@ -15,7 +15,7 @@ public class TestRun {
 		});
 		cm.setCommand(new ExampleCommand());
 		try {
-			cm.execute("Jahovis", "hello red 5");
+			cm.execute("Jahovis", "hello orange 5");
 		} catch (CommandFailedException e) {
 			for (String s : e.getMultilineException()) {
 				System.out.println(s);

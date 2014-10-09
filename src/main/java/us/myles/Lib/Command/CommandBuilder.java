@@ -6,6 +6,8 @@ import us.myles.Lib.Command.Exception.InvalidArgumentException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -59,18 +61,19 @@ public class CommandBuilder {
 						e.printStackTrace();
 					}
 				} catch (InvalidArgumentException e) {
-					throw new CommandFailedException(new String[]{new StringBuilder().append("Failed running that sub-command, try using /").append(getCommandName()).append(" help,").toString(), new StringBuilder().append("The argument '").append(e.getArgument()).append("' seems to be the ").append("reason: ").append(e.getReason()).toString()});
+					throw new CommandFailedException(new String[]{MessageFormat.format("Failed running that sub-command, try using /{0} help,", getCommandName()),
+							MessageFormat.format("The argument \"{0}\" seems to be the reason: {1}", e.getArgument(), e.getReason())});
 				}
 			} else {
 				List list = new ArrayList();
-				list.add(new StringBuilder().append("The parameters '/").append(getCommandName()).append(" ").append(arguments).append("' don't look right, try some of these:").toString());
+				list.add(MessageFormat.format("The parameters \"/{0} {1}\" do not look right, try some of these:", getCommandName(), arguments));
 				for (Method m : methods) {
 					list.add(getRepresentation(m));
 				}
 				throw new CommandFailedException(list);
 			}
 		} else {
-			throw new CommandFailedException(new String[]{new StringBuilder().append("Could not find that sub-command, try using /").append(getCommandName()).append(" help.").toString()});
+			throw new CommandFailedException(new String[]{MessageFormat.format("Could not find that sub-command, try using /{0} help", getCommandName())});
 		}
 	}
 
@@ -85,7 +88,7 @@ public class CommandBuilder {
 				Class type;
 				if (param.equals(Optional.class)) {
 					optional = true;
-					type = (Class) ((java.lang.reflect.ParameterizedType) m.getGenericParameterTypes()[currentParam]).getActualTypeArguments()[0];
+					type = (Class) ((ParameterizedType) m.getGenericParameterTypes()[currentParam]).getActualTypeArguments()[0];
 				} else {
 					type = param;
 				}
@@ -99,7 +102,7 @@ public class CommandBuilder {
 							enumTypes.append(new StringBuilder().append(enumTypes.length() == 0 ? "" : "/").append(ee.name()).toString());
 						}
 					}
-					t = new StringBuilder().append(param.getSimpleName() + " (").append(enumTypes).append(")").toString();
+					t = MessageFormat.format("{0}({1})", param.getSimpleName(), enumTypes);
 				}
 				sb.append(new StringBuilder().append(" ").append(optional ? "<" : "").append(t).append(optional ? ">" : "").toString());
 			}
@@ -122,7 +125,7 @@ public class CommandBuilder {
 						if (param.equals(String[].class)) {
 							toGive.add(arguments);
 						} else {
-							throw new InvalidArgumentException(new StringBuilder().append(param.getSimpleName()).append(".class").toString(), "Is not String[].class");
+							throw new InvalidArgumentException(param.getSimpleName(), "Is not String[].class");
 						}
 					}
 					if (cr.type() == ReferenceType.ARGSTRING) {
@@ -135,16 +138,16 @@ public class CommandBuilder {
 							}
 							toGive.add(sb.toString());
 						} else {
-							throw new InvalidArgumentException(new StringBuilder().append(param.getSimpleName()).append(".class").toString(), "Is not String.class");
+							throw new InvalidArgumentException(param.getSimpleName(), "Is not String.class");
 						}
 					}
 					if (cr.type() == ReferenceType.SELF)
 						if (userObject.getClass().equals(param))
 							toGive.add(userObject);
 						else
-							throw new InvalidArgumentException(new StringBuilder().append(param.getSimpleName()).append(".class").toString(), new StringBuilder().append("Is not ").append(param.getSimpleName()).toString());
+							throw new InvalidArgumentException(param.getSimpleName(), MessageFormat.format("Does not equal {0}", param.getSimpleName()));
 				} else {
-					throw new InvalidArgumentException(new StringBuilder().append(param.getSimpleName()).append(".class").toString(), "Failed, command reference missing.");
+					throw new InvalidArgumentException(param.getSimpleName(), "Failed, command reference missing.");
 				}
 			} else if (param.equals(Optional.class)) {
 				Optional o;
@@ -167,7 +170,7 @@ public class CommandBuilder {
 					if ((e instanceof InvalidArgumentException)) {
 						throw e;
 					}
-					throw new InvalidArgumentException("Error", new StringBuilder().append("Expecting additional argument of type ").append(param.getSimpleName()).toString());
+					throw new InvalidArgumentException("Error", MessageFormat.format("Expecting additional argument of type {0}", param.getSimpleName()));
 				}
 
 			}
@@ -202,14 +205,14 @@ public class CommandBuilder {
 					enumTypes.append(new StringBuilder().append(enumTypes.length() == 0 ? "" : ", ").append(ee.name()).toString());
 				}
 			}
-			throw new InvalidArgumentException(argument, new StringBuilder().append("Does not match any of the following ").append(enumTypes.toString()).toString());
+			throw new InvalidArgumentException(argument, MessageFormat.format("Does not match any of the following ", enumTypes));
 		}
 		for (ParamAdapter a : this.adapters) {
-			if ((a.getType().isAssignableFrom(param)) || (param.isAssignableFrom(a.getType()))) {
+			if ((a.type().isAssignableFrom(param)) || (param.isAssignableFrom(a.type()))) {
 				return param.cast(a.adapt(argument));
 			}
 		}
-		throw new InvalidArgumentException(argument, new StringBuilder().append("Cannot find adapter to cast to ").append(param.getSimpleName()).append(".class").toString());
+		throw new InvalidArgumentException(argument, MessageFormat.format("Cannot find adapter to cast to {0}.class", param.getSimpleName()));
 	}
 
 	private Enum getMatchingEnum(String argument, Class<?> param) {

@@ -10,7 +10,7 @@ public class CommandFailedException extends Exception {
 	}
 
 	public CommandFailedException(List<String> ex) {
-		this.mlc = ((String[]) ex.toArray(new String[0]));
+		this.mlc = ex.toArray(new String[0]);
 	}
 
 	public String[] getMultilineException() {

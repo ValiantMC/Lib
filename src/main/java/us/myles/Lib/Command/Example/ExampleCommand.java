@@ -6,8 +6,8 @@ import us.myles.Lib.Command.Optional;
 import us.myles.Lib.Command.ReferenceType;
 
 public class ExampleCommand implements Command {
-	public void hello(@CommandReference(type = ReferenceType.SELF) String player, Optional<Color> colour, Integer i) {
-		System.out.println("Saying hello to " + player + (colour.isPresent() ? " Favourite Colour is " + colour.get().name() : "") + " Fav number: " + i);
+	public void hello(@CommandReference(type = ReferenceType.SELF) String player, Color colour, Integer i) {
+		System.out.println("Saying hello to " + player + " Favourite Colour is " + colour.name() + " Fav number: " + i);
 	}
 
 	public void spoon(Spoon s) {
