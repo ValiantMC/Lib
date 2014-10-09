@@ -1,7 +1,11 @@
 package us.myles.Lib.Command;
 
+import us.myles.Lib.Command.Exception.AccessDeniedException;
 import us.myles.Lib.Command.Exception.CommandFailedException;
 import us.myles.Lib.Command.Exception.InvalidArgumentException;
+import us.myles.Lib.Command.Interface.Command;
+import us.myles.Lib.Command.Interface.ParamAdapter;
+import us.myles.Lib.Command.Interface.SecurityHandler;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
@@ -16,10 +20,12 @@ public class CommandBuilder {
 	private Command command;
 	private List<ParamAdapter> adapters;
 	private String commandName;
+	private List<SecurityHandler> security;
 
 	public CommandBuilder(String commandName) {
 		this.commandName = commandName;
 		this.adapters = new ArrayList();
+		this.security = new ArrayList();
 		this.adapters.add(new ParamAdapter(String.class) {
 			public String adapt(String arg) {
 				return arg;
@@ -46,6 +52,11 @@ public class CommandBuilder {
 		return this;
 	}
 
+	public CommandBuilder security(SecurityHandler pa) {
+		this.security.add(pa);
+		return this;
+	}
+
 	public CommandBuilder command(Command command) {
 		this.command = command;
 		return this;
@@ -65,28 +76,33 @@ public class CommandBuilder {
 		String[] args = arguments.split(" ");
 		List<Method> methods = getMatchingMethods(args[0]);
 		if (methods.size() != 0) {
-			Method commandMethod = resolveMethod(methods, args, userObject);
-			if (commandMethod != null) {
-				try {
-					List toGive = generateParameters(commandMethod, args, arguments, userObject);
+			try {
+				Method commandMethod = resolveMethod(methods, args, userObject);
+				if (commandMethod != null) {
 					try {
-						commandMethod.invoke(this.command, toGive.toArray());
-					} catch (IllegalAccessException e) {
-						e.printStackTrace();
-					} catch (InvocationTargetException e) {
-						e.printStackTrace();
+						List toGive = null;
+						toGive = generateParameters(commandMethod, args, arguments, userObject);
+						try {
+							commandMethod.invoke(this.command, toGive.toArray());
+						} catch (IllegalAccessException e) {
+							e.printStackTrace();
+						} catch (InvocationTargetException e) {
+							e.printStackTrace();
+						}
+					} catch (InvalidArgumentException e) {
+						throw new CommandFailedException(new String[]{MessageFormat.format("Failed running that sub-command, try using /{0} help,", getCommandName()),
+								MessageFormat.format("The argument \"{0}\" seems to be the reason: {1}", e.getArgument(), e.getReason())});
 					}
-				} catch (InvalidArgumentException e) {
-					throw new CommandFailedException(new String[]{MessageFormat.format("Failed running that sub-command, try using /{0} help,", getCommandName()),
-							MessageFormat.format("The argument \"{0}\" seems to be the reason: {1}", e.getArgument(), e.getReason())});
+				} else {
+					List list = new ArrayList();
+					list.add(MessageFormat.format("The parameters \"/{0} {1}\" do not look right, try some of these:", getCommandName(), arguments));
+					for (Method m : methods) {
+						list.add(getRepresentation(m));
+					}
+					throw new CommandFailedException(list);
 				}
-			} else {
-				List list = new ArrayList();
-				list.add(MessageFormat.format("The parameters \"/{0} {1}\" do not look right, try some of these:", getCommandName(), arguments));
-				for (Method m : methods) {
-					list.add(getRepresentation(m));
-				}
-				throw new CommandFailedException(list);
+			} catch (AccessDeniedException e) {
+				throw new CommandFailedException(new String[]{MessageFormat.format("Command Error: {0}", e.getMessage())});
 			}
 		} else {
 			throw new CommandFailedException(new String[]{MessageFormat.format("Could not find that sub-command, try using /{0} help", getCommandName())});
@@ -136,7 +152,9 @@ public class CommandBuilder {
 		return type.getSimpleName();
 	}
 
-	private List<Object> generateParameters(Method commandMethod, String[] args, String arguments, Object userObject) {
+	private List<Object> generateParameters(Method commandMethod, String[] args, String arguments, Object userObject) throws AccessDeniedException {
+		for (SecurityHandler sm : this.security)
+			sm.access(commandMethod, userObject);
 		int currentArg = 0;
 		List<Object> toGive = new ArrayList();
 		for (int currentParam = 0; currentParam < commandMethod.getParameterTypes().length; currentParam++) {
@@ -209,12 +227,13 @@ public class CommandBuilder {
 		return currentArg;
 	}
 
-	private Method resolveMethod(List<Method> methods, String[] args, Object userObject) {
+	private Method resolveMethod(List<Method> methods, String[] args, Object userObject) throws AccessDeniedException {
 		for (Method m : methods)
 			try {
 				generateParameters(m, args, "", userObject);
 				return m;
 			} catch (Exception e) {
+				if (e instanceof AccessDeniedException) throw e;
 			}
 		return null;
 	}
@@ -223,6 +242,12 @@ public class CommandBuilder {
 		int highest = 0;
 		Method high = null;
 		for (Method m : methods) {
+			try {
+				for (SecurityHandler sm : this.security)
+					sm.access(m, userObject);
+			} catch (Exception ee) {
+				continue;
+			}
 			int currentArg = 0;
 			List<Object> toGive = new ArrayList();
 			int pts = 0;

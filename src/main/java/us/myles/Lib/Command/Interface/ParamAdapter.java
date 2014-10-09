@@ -1,4 +1,4 @@
-package us.myles.Lib.Command;
+package us.myles.Lib.Command.Interface;
 
 import java.util.ArrayList;
 import java.util.List;
