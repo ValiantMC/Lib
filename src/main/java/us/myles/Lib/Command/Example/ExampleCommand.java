@@ -2,7 +2,6 @@ package us.myles.Lib.Command.Example;
 
 import us.myles.Lib.Command.Command;
 import us.myles.Lib.Command.CommandReference;
-import us.myles.Lib.Command.Optional;
 import us.myles.Lib.Command.ReferenceType;
 
 public class ExampleCommand implements Command {
