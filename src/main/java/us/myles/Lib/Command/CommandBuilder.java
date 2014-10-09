@@ -9,6 +9,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.text.MessageFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class CommandBuilder {
@@ -32,15 +33,30 @@ public class CommandBuilder {
 				}
 				throw new InvalidArgumentException(arg, "Argument is not a number.");
 			}
+
+			@Override
+			public String name() {
+				return "Number";
+			}
 		});
 	}
 
-	public void addAdapter(ParamAdapter pa) {
+	public CommandBuilder adapter(ParamAdapter pa) {
 		this.adapters.add(pa);
+		return this;
 	}
 
-	public void setCommand(Command command) {
+	public CommandBuilder command(Command command) {
 		this.command = command;
+		return this;
+	}
+
+	public void execute(Object userObject, String... arguments) throws CommandFailedException {
+		StringBuilder sb = new StringBuilder();
+		for (String s : arguments) {
+			sb.append((sb.length() == 0 ? "" : " ") + s);
+		}
+		execute(userObject, sb.toString());
 	}
 
 	public void execute(Object userObject, String arguments) throws CommandFailedException {
@@ -93,7 +109,7 @@ public class CommandBuilder {
 					type = param;
 				}
 
-				String t = type.getSimpleName();
+				String t = getTypeName(type);
 				if (type.isEnum()) {
 					StringBuilder enumTypes = new StringBuilder();
 					for (Object o : type.getEnumConstants()) {
@@ -111,76 +127,86 @@ public class CommandBuilder {
 		return sb.toString();
 	}
 
-	private List<Object> generateParameters(Method commandMethod, String[] args, String arguments, Object userObject) {
-		int currentParam = 0;
-		int currentArg = 0;
-		List toGive = new ArrayList();
-		for (Class param : commandMethod.getParameterTypes()) {
-			Annotation[] paramAnnotations = commandMethod.getParameterAnnotations()[currentParam];
-
-			if (isSpecial(paramAnnotations)) {
-				CommandReference cr = getCommandReference(paramAnnotations);
-				if (cr != null) {
-					if (cr.type() == ReferenceType.RAWARGS) {
-						if (param.equals(String[].class)) {
-							toGive.add(arguments);
-						} else {
-							throw new InvalidArgumentException(param.getSimpleName(), "Is not String[].class");
-						}
-					}
-					if (cr.type() == ReferenceType.ARGSTRING) {
-						if (param.equals(String.class)) {
-							StringBuilder sb = new StringBuilder();
-							for (int i = 0; i < args.length; i++) {
-								if (i != 0) {
-									sb.append(new StringBuilder().append(sb.length() == 0 ? "" : " ").append(args[i]).toString());
-								}
-							}
-							toGive.add(sb.toString());
-						} else {
-							throw new InvalidArgumentException(param.getSimpleName(), "Is not String.class");
-						}
-					}
-					if (cr.type() == ReferenceType.SELF)
-						if (userObject.getClass().equals(param))
-							toGive.add(userObject);
-						else
-							throw new InvalidArgumentException(param.getSimpleName(), MessageFormat.format("Does not equal {0}", param.getSimpleName()));
-				} else {
-					throw new InvalidArgumentException(param.getSimpleName(), "Failed, command reference missing.");
-				}
-			} else if (param.equals(Optional.class)) {
-				Optional o;
-				try {
-					String argument = args[(currentArg + 1)];
-					Class base = (Class) ((java.lang.reflect.ParameterizedType) commandMethod.getGenericParameterTypes()[currentParam]).getActualTypeArguments()[0];
-					Object x = adaptString(argument, base);
-					currentArg++;
-					o = new Optional(x);
-				} catch (Exception e) {
-					o = new Optional(null);
-				}
-				toGive.add(o);
-			} else {
-				currentArg++;
-				try {
-					String argument = args[currentArg];
-					toGive.add(adaptString(argument, param));
-				} catch (Exception e) {
-					if ((e instanceof InvalidArgumentException)) {
-						throw e;
-					}
-					throw new InvalidArgumentException("Error", MessageFormat.format("Expecting additional argument of type {0}", param.getSimpleName()));
-				}
-
+	private String getTypeName(Class type) {
+		for (ParamAdapter a : this.adapters) {
+			if ((a.type().isAssignableFrom(type)) || (type.isAssignableFrom(a.type()))) {
+				return a.name();
 			}
+		}
+		return type.getSimpleName();
+	}
 
-			currentParam++;
+	private List<Object> generateParameters(Method commandMethod, String[] args, String arguments, Object userObject) {
+		int currentArg = 0;
+		List<Object> toGive = new ArrayList();
+		for (int currentParam = 0; currentParam < commandMethod.getParameterTypes().length; currentParam++) {
+			currentArg = generateParameter(toGive, commandMethod, currentParam, currentArg, userObject, args, arguments);
 		}
 		if (currentArg != args.length - 1) {
 			throw new InvalidArgumentException("Error", "You supplied too many arguments");
 		}
 		return toGive;
+	}
+
+	private int generateParameter(List<Object> objects, Method m, int index, int currentArg, Object userObject, String[] args, String arguments) {
+		Annotation[] annotations = m.getParameterAnnotations()[index];
+		Class parameter = m.getParameterTypes()[index];
+		if (isSpecial(annotations)) {
+			CommandReference cr = getCommandReference(annotations);
+			if (cr != null) {
+				if (cr.type() == ReferenceType.RAWARGS) {
+					if (parameter.equals(String[].class)) {
+						objects.add(arguments);
+					} else {
+						throw new InvalidArgumentException(parameter.getSimpleName(), "Is not String[].class");
+					}
+				}
+				if (cr.type() == ReferenceType.ARGSTRING) {
+					if (parameter.equals(String.class)) {
+						StringBuilder sb = new StringBuilder();
+						for (int i = 0; i < args.length; i++) {
+							if (i != 0) {
+								sb.append(new StringBuilder().append(sb.length() == 0 ? "" : " ").append(args[i]).toString());
+							}
+						}
+						objects.add(sb.toString());
+					} else {
+						throw new InvalidArgumentException(parameter.getSimpleName(), "Is not String.class");
+					}
+				}
+				if (cr.type() == ReferenceType.SELF)
+					if (userObject.getClass().equals(parameter))
+						objects.add(userObject);
+					else
+						throw new InvalidArgumentException(parameter.getSimpleName(), MessageFormat.format("Does not equal {0}", parameter.getSimpleName()));
+			} else {
+				throw new InvalidArgumentException(parameter.getSimpleName(), "Failed, command reference missing.");
+			}
+		} else if (parameter.equals(Optional.class)) {
+			Optional o;
+			try {
+				String argument = args[(currentArg + 1)];
+				Class base = (Class) ((java.lang.reflect.ParameterizedType) m.getGenericParameterTypes()[index]).getActualTypeArguments()[0];
+				Object x = adaptString(argument, base);
+				currentArg++;
+				o = new Optional(x);
+			} catch (Exception e) {
+				o = new Optional(null);
+			}
+			objects.add(o);
+		} else {
+			currentArg++;
+			try {
+				String argument = args[currentArg];
+				objects.add(adaptString(argument, parameter));
+			} catch (Exception e) {
+				if ((e instanceof InvalidArgumentException)) {
+					throw e;
+				}
+				throw new InvalidArgumentException("Error", MessageFormat.format("Expecting additional argument of type {0}", parameter.getSimpleName()));
+			}
+		}
+		return currentArg;
 	}
 
 	private Method resolveMethod(List<Method> methods, String[] args, Object userObject) {
@@ -191,6 +217,71 @@ public class CommandBuilder {
 			} catch (Exception e) {
 			}
 		return null;
+	}
+
+	private Method closestMethod(List<Method> methods, String[] args, Object userObject) {
+		int highest = 0;
+		Method high = null;
+		for (Method m : methods) {
+			int currentArg = 0;
+			List<Object> toGive = new ArrayList();
+			int pts = 0;
+			for (int currentParam = 0; currentParam < m.getParameterTypes().length; currentParam++) {
+				try {
+					currentArg = generateParameter(toGive, m, currentParam, currentArg, userObject, args, "Another Placeholder");
+					pts++;
+				} catch (Exception e) {
+				}
+			}
+			if (pts > highest) {
+				high = m;
+				highest = pts;
+			}
+		}
+		return high;
+	}
+
+	public List<String> complete(Object userObject, String[] args) {
+		List<Method> methods = getMatchingMethods(args[0]);
+		if (methods.size() != 0) {
+			Method commandMethod = closestMethod(methods, args, userObject);
+			if (commandMethod != null) {
+				int currentArg = 0;
+				for (int currentParam = 0; currentParam < commandMethod.getParameterTypes().length; currentParam++) {
+					Annotation[] annotations = commandMethod.getParameterAnnotations()[currentParam];
+					Class parameter = commandMethod.getParameterTypes()[currentParam];
+					if (!isSpecial(annotations)) {
+						if (parameter.equals(Optional.class)) {
+							Class base = (Class) ((java.lang.reflect.ParameterizedType) commandMethod.getGenericParameterTypes()[currentParam]).getActualTypeArguments()[0];
+							try {
+								String argument = args[(currentArg + 1)];
+								adaptString(argument, base);
+								currentArg++;
+							} catch (Exception e) {
+								if (!(e instanceof InvalidArgumentException)) {
+									return getAdapterExamples(base, userObject);
+								}
+							}
+						} else {
+							currentArg++;
+							try {
+								String argument = args[currentArg];
+								adaptString(argument, parameter);
+							} catch (Exception e) {
+								if (!(e instanceof InvalidArgumentException)) {
+									return getAdapterExamples(parameter, userObject);
+								}
+							}
+						}
+					}
+				}
+			} else {
+				return Arrays.asList();
+			}
+		} else {
+			return Arrays.asList();
+		}
+		return Arrays.asList();
 	}
 
 	private Object adaptString(String argument, Class<?> param) {
@@ -213,6 +304,25 @@ public class CommandBuilder {
 			}
 		}
 		throw new InvalidArgumentException(argument, MessageFormat.format("Cannot find adapter to cast to {0}.class", param.getSimpleName()));
+	}
+
+	private List<String> getAdapterExamples(Class<?> param, Object userObject) {
+		if (param.isEnum()) {
+			List<String> s = new ArrayList<String>();
+			for (Object o : param.getEnumConstants()) {
+				if ((o instanceof Enum)) {
+					Enum ee = (Enum) o;
+					s.add(ee.name());
+				}
+			}
+			return s;
+		}
+		for (ParamAdapter a : this.adapters) {
+			if ((a.type().isAssignableFrom(param)) || (param.isAssignableFrom(a.type()))) {
+				return a.examples(userObject);
+			}
+		}
+		return Arrays.asList();
 	}
 
 	private Enum getMatchingEnum(String argument, Class<?> param) {
@@ -247,7 +357,7 @@ public class CommandBuilder {
 		return methods;
 	}
 
-	public String getCommandName() {
+	private String getCommandName() {
 		return this.commandName;
 	}
 }

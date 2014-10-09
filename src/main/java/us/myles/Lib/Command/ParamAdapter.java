@@ -12,7 +12,7 @@ public abstract class ParamAdapter<T> {
 
 	public abstract T adapt(String arg);
 
-	public List<String> examples(Object userObject){
+	public List<String> examples(Object userObject) {
 		return new ArrayList<String>();
 	}
 
