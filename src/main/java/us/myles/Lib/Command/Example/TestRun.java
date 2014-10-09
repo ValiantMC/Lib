@@ -32,14 +32,14 @@ public class TestRun {
 				}).command(new ExampleCommand());
 		// Execution
 		try {
-			cm.execute("Jahovis", "hug", "Squashy");
+			cm.execute("Jahovis", "hug", "5");
 		} catch (CommandFailedException e) {
 			for (String s : e.getMultilineException()) {
 				System.out.println(s);
 			}
 		}
 		// Completion
-		String input = "hello "; //<- They have hit the tab key.
+		String input = "hug "; //<- They have hit the tab key.
 		String[] data = input.split(" ");
 		List<String> s = cm.complete("Jahovis", data);
 		System.out.println("Suggestions:");

@@ -43,6 +43,24 @@ public class CommandBuilder {
 				return "Number";
 			}
 		});
+		this.adapters.add(new ParamAdapter(Boolean.class) {
+			public Boolean adapt(String arg) {
+				if (arg.equalsIgnoreCase("on") || arg.equalsIgnoreCase("true") || arg.equalsIgnoreCase("yes") || arg.equalsIgnoreCase("1") || arg.equalsIgnoreCase("y")) {
+					return Boolean.TRUE;
+				}
+				return Boolean.FALSE;
+			}
+
+			@Override
+			public List<String> examples(Object userObject) {
+				return Arrays.asList("true", "false");
+			}
+
+			@Override
+			public String name() {
+				return "Boolean";
+			}
+		});
 	}
 
 	public CommandBuilder adapter(ParamAdapter pa) {
@@ -237,7 +255,7 @@ public class CommandBuilder {
 	}
 
 	private Method closestMethod(List<Method> methods, String[] args, Object userObject) {
-		int highest = 0;
+		int highest = -1;
 		Method high = null;
 		for (Method m : methods) {
 			try {
@@ -253,8 +271,7 @@ public class CommandBuilder {
 				try {
 					currentArg = generateParameter(toGive, m, currentParam, currentArg, userObject, args, "Another Placeholder");
 					pts++;
-				} catch (Exception e) {
-				}
+				} catch (Exception e) {}
 			}
 			if (pts > highest) {
 				high = m;
@@ -293,6 +310,7 @@ public class CommandBuilder {
 							} catch (Exception e) {
 								if (!(e instanceof InvalidArgumentException)) {
 									return getAdapterExamples(parameter, userObject);
+
 								}
 							}
 						}

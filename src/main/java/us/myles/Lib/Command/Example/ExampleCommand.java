@@ -13,7 +13,7 @@ public class ExampleCommand implements Command {
 		System.out.println("Spoons! " + s.getFlavour());
 	}
 	@Op
-	public void hug(String person){
+	public void hug(Boolean person){
 		System.out.println("Hugs " + person);
 	}
 }
