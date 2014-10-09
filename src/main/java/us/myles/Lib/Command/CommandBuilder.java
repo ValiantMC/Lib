@@ -1,11 +1,9 @@
 package us.myles.Lib.Command;
 
+import us.myles.Lib.Command.API.*;
 import us.myles.Lib.Command.Exception.AccessDeniedException;
 import us.myles.Lib.Command.Exception.CommandFailedException;
 import us.myles.Lib.Command.Exception.InvalidArgumentException;
-import us.myles.Lib.Command.Interface.Command;
-import us.myles.Lib.Command.Interface.ParamAdapter;
-import us.myles.Lib.Command.Interface.SecurityHandler;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;

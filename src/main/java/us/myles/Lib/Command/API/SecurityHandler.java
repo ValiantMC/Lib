@@ -1,4 +1,4 @@
-package us.myles.Lib.Command.Interface;
+package us.myles.Lib.Command.API;
 
 import us.myles.Lib.Command.Exception.AccessDeniedException;
 

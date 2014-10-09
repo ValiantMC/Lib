@@ -3,8 +3,8 @@ package us.myles.Lib.Command.Example;
 import us.myles.Lib.Command.CommandBuilder;
 import us.myles.Lib.Command.Exception.AccessDeniedException;
 import us.myles.Lib.Command.Exception.CommandFailedException;
-import us.myles.Lib.Command.Interface.ParamAdapter;
-import us.myles.Lib.Command.Interface.SecurityHandler;
+import us.myles.Lib.Command.API.ParamAdapter;
+import us.myles.Lib.Command.API.SecurityHandler;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;

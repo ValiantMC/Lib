@@ -1,4 +1,4 @@
-package us.myles.Lib.Command;
+package us.myles.Lib.Command.API;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
