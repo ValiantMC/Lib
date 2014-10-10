@@ -5,3 +5,7 @@ Command Module:
 [+] Support for alot more Boxed Classes
 [+] Support for persistant objects between command runs. Services Possibily?
 
+Module Module:
+[+] Load Modules / Unload Modules
+[+] Hooks into a shared service?
+[+] Depend on other modules?
